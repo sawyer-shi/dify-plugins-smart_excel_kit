@@ -1,0 +1,72 @@
+identity:
+  author: custom_developer
+  name: single_column_text_analysis
+  label:
+    en_US: Single Column Text Analysis
+    zh_Hans: 单列文本信息分析
+description:
+  human:
+    en_US: Analyze a single column of text with a custom prompt.
+    zh_Hans: 使用自定义提示词分析表格中单列文本。
+  llm: Analyze a single column of text with a custom prompt.
+class_name: SingleColumnTextAnalysisTool
+parameters:
+  - name: llm_model
+    type: model-selector
+    scope: llm
+    required: true
+    label:
+      en_US: LLM Model
+      zh_Hans: LLM 模型
+    form: llm
+    human_description:
+      en_US: The LLM model to use for text analysis.
+      zh_Hans: 用于文本分析的 LLM 模型。
+    llm_description: The LLM model to use for text analysis.
+  - name: upload_file
+    type: file
+    required: true
+    label:
+      en_US: File
+      zh_Hans: 上传文件
+    form: llm
+    human_description:
+      en_US: The Excel or CSV file to analyze.
+      zh_Hans: 要分析的 Excel 或 CSV 文件。
+    llm_description: The Excel or CSV file to analyze.
+  - name: input_column
+    type: string
+    required: true
+    label:
+      en_US: Input Column (e.g. D2 or D2:D10)
+      zh_Hans: 输入列坐标（例如 D2 或 D2:D10）
+    form: llm
+    human_description:
+      en_US: The column coordinates to analyze text from.
+      zh_Hans: 要分析文本的列坐标。
+    llm_description: The column coordinates to analyze text from.
+  - name: output_column
+    type: string
+    required: true
+    label:
+      en_US: Output Column (e.g. F2 or F2:F10)
+      zh_Hans: 输出列坐标（例如 F2 或 F2:F10）
+    form: llm
+    human_description:
+      en_US: The column coordinates to write analysis results to.
+      zh_Hans: 写入分析结果的列坐标。
+    llm_description: The column coordinates to write analysis results to.
+  - name: prompt
+    type: string
+    required: true
+    label:
+      en_US: Prompt
+      zh_Hans: 提示词
+    form: llm
+    human_description:
+      en_US: Instructions for LLM (e.g., "Summarize this").
+      zh_Hans: 给 LLM 的指令 (例如："请总结这段文字")。
+    llm_description: Instructions for LLM to analyze text.
+extra:
+  python:
+    source: tools/single_column_text_analysis.py

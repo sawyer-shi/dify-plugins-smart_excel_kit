@@ -1,0 +1,49 @@
+version: 0.0.1
+type: plugin
+tags: 
+  - productivity
+  - utilities
+author: sawyer-shi
+name: smart_excel_kit
+label:
+  en_US: smart_excel_kit
+  zh_Hans: smart_excel_kit
+description:
+  en_US: 'Local Smart Excel Kit: Analyze and summarize the text or image data in the Excel/CSV table through the large model you provided, and write the results back into the table and output the file.'
+  zh_Hans: '本地智能多维表格：通过你提供的大模型对 Excel/CSV 表格中的文本或图片数据进行分析、总结并将结果写回表格并输出文件。'
+icon: icon.png
+resource:
+  memory: 268435456
+  permission:
+    model:
+      enabled: true
+      llm: true
+      text_embedding: false
+      rerank: false
+      tts: false
+      speech2text: false
+      moderation: false
+    endpoint:
+      enabled: true
+    app:
+      enabled: true
+    storage:
+      enabled: true
+      size: 1048576
+plugins:
+  tools:
+   - provider/smart_excel_kit.yaml
+meta:
+  version: 0.0.1
+  arch:
+    - amd64
+    - arm64
+  runner:
+    language: python
+    version: "3.12"
+    entrypoint: main
+  minimum_dify_version: null
+created_at: 2026-01-21T14:14:52.24237+08:00
+privacy: PRIVACY.md
+repo: https://github.com/sawyer-shi/dify-plugins-smart_excel_kit
+verified: false
