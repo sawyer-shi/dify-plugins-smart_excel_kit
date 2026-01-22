@@ -9,12 +9,17 @@ from tools.utils import ExcelProcessor
 
 class MultiColumnImageAnalysisTool(Tool):
     def _invoke(self, tool_parameters: dict[str, Any]) -> Generator[ToolInvokeMessage]:
-        # ... params ...
         llm_model = tool_parameters.get('model_config')
         file_obj = tool_parameters.get('upload_file')
-        img_cols = tool_parameters.get('image_columns', '').strip()
-        out_col = tool_parameters.get('output_column', '').strip()
         user_prompt = tool_parameters.get('prompt')
+
+        # === 核心修复：兼容参数名 ===
+        # 兼容 'image_columns' 和 'image_column'
+        img_cols = tool_parameters.get('image_columns') or tool_parameters.get('image_column') or ''
+        img_cols = str(img_cols).strip()
+
+        output_coord = tool_parameters.get('output_column', '').strip()
+        # ==========================
 
         if not isinstance(llm_model, dict):
             yield self.create_text_message(f"Error: model_config invalid.")
@@ -30,7 +35,7 @@ class MultiColumnImageAnalysisTool(Tool):
             yield self.create_text_message(f"[输入列错误] {err_msg}")
             return
 
-        is_valid_out, err_msg_out = ExcelProcessor.validate_coord_format(out_col, is_single_col_tool=True)
+        is_valid_out, err_msg_out = ExcelProcessor.validate_coord_format(output_coord, is_single_col_tool=True)
         if not is_valid_out:
             yield self.create_text_message(f"[输出列错误] {err_msg_out}")
             return
@@ -40,7 +45,7 @@ class MultiColumnImageAnalysisTool(Tool):
         
         try:
             in_infos = ExcelProcessor.get_indices_list(img_cols, max_rows)
-            out_info = ExcelProcessor.parse_range(out_col, max_rows)
+            out_info = ExcelProcessor.parse_range(output_coord, max_rows)
         except Exception as e:
             yield self.create_text_message(f"Excel coordinate error: {str(e)}")
             return
@@ -59,7 +64,6 @@ class MultiColumnImageAnalysisTool(Tool):
             target_rows = range(min_input_row, max_input_row + 1)
 
         for i in target_rows:
-            # ... 循环体 ...
             content_list = [TextPromptMessageContent(type='text', data=user_prompt)]
             has_img = False
 
@@ -75,7 +79,6 @@ class MultiColumnImageAnalysisTool(Tool):
             
             if not has_img: continue
             
-            # --- 模型调用 (Robust) ---
             try:
                 if hasattr(self, 'invoke_model'):
                     response = self.invoke_model(model=llm_model, messages=[UserPromptMessage(content=content_list)])

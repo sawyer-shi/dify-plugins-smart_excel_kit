@@ -7,30 +7,36 @@ from dify_plugin.entities.tool import ToolInvokeMessage
 from dify_plugin.entities.model.message import UserPromptMessage, TextPromptMessageContent
 from tools.utils import ExcelProcessor
 
-class SingleColumnImageAnalysisTool(Tool):
+class MultiColumnTextAnalysisTool(Tool):
     def _invoke(self, tool_parameters: dict[str, Any]) -> Generator[ToolInvokeMessage]:
-        # ... 获取参数 ...
         llm_model = tool_parameters.get('model_config')
         file_obj = tool_parameters.get('upload_file')
-        img_col = tool_parameters.get('image_column', '').strip()
-        out_col = tool_parameters.get('output_column', '').strip()
         user_prompt = tool_parameters.get('prompt')
 
-        # ... 这里的基本参数校验保持不变 ...
+        # === 核心修复：兼容参数名 ===
+        # 尝试读取 'input_columns' (复数)，如果读不到（为空），就去读 'input_column' (单数)
+        # 这样无论您的 manifest.yaml 里写的是哪个，都能正常工作
+        input_coords = tool_parameters.get('input_columns') or tool_parameters.get('input_column') or ''
+        input_coords = str(input_coords).strip()
+        
+        output_coord = tool_parameters.get('output_column', '').strip()
+        # ==========================
+
         if not isinstance(llm_model, dict):
             yield self.create_text_message(f"Error: model_config invalid.")
             return
+
         if not file_obj:
             yield self.create_text_message("Error: No file uploaded.")
             return
 
-        # [新增] 严格格式校验
-        is_valid, err_msg = ExcelProcessor.validate_coord_format(img_col, is_single_col_tool=True)
+        # 1. 格式校验 (is_single=False)
+        is_valid, err_msg = ExcelProcessor.validate_coord_format(input_coords, is_single_col_tool=False)
         if not is_valid:
             yield self.create_text_message(f"[输入列错误] {err_msg}")
             return
-        
-        is_valid_out, err_msg_out = ExcelProcessor.validate_coord_format(out_col, is_single_col_tool=True)
+
+        is_valid_out, err_msg_out = ExcelProcessor.validate_coord_format(output_coord, is_single_col_tool=True)
         if not is_valid_out:
             yield self.create_text_message(f"[输出列错误] {err_msg_out}")
             return
@@ -39,42 +45,50 @@ class SingleColumnImageAnalysisTool(Tool):
         max_rows = len(df)
         
         try:
-            in_info = ExcelProcessor.parse_range(img_col, max_rows)
-            out_info = ExcelProcessor.parse_range(out_col, max_rows)
+            in_infos = ExcelProcessor.get_indices_list(input_coords, max_rows)
+            out_info = ExcelProcessor.parse_range(output_coord, max_rows)
         except Exception as e:
             yield self.create_text_message(f"Excel coordinate error: {str(e)}")
             return
 
-        # [新增] 边界检查
-        if in_info['col_idx'] >= len(df.columns):
-             yield self.create_text_message(f"错误: 图片列 '{in_info['col_name']}' 超出文件范围 (当前文件共 {len(df.columns)} 列).")
-             return
+        # 2. 边界校验
+        for info in in_infos:
+            if info['col_idx'] >= len(df.columns):
+                yield self.create_text_message(f"错误: 输入列 '{info['col_name']}' 不存在 (超出文件最大列数).")
+                return
 
-        target_rows = range(in_info['start_row'], in_info['end_row'] + 1)
+        if not in_infos:
+            target_rows = range(0, 0)
+        else:
+            min_input_row = min(info['start_row'] for info in in_infos)
+            max_input_row = max(info['end_row'] for info in in_infos)
+            target_rows = range(min_input_row, max_input_row + 1)
 
         for i in target_rows:
-            # ... 循环体逻辑保持之前修复过的版本 (含LLM调用和<think>清洗) ...
-            try:
-                url = str(df.iat[i, in_info['col_idx']]).strip()
-            except IndexError:
+            row_data = []
+            for info in in_infos:
+                if info['start_row'] <= i <= info['end_row']:
+                    try:
+                        val = str(df.iat[i, info['col_idx']])
+                        row_data.append(val)
+                    except IndexError:
+                        pass
+            
+            content_str = " | ".join(row_data)
+            if not content_str.strip(): 
                 continue
 
-            if not url or not url.startswith(('http', 'https')): continue
+            full_content = f"{user_prompt}\n\n[待分析数据]: {content_str}"
+            messages = [UserPromptMessage(content=[TextPromptMessageContent(type='text', data=full_content)])]
 
-            content_list = [
-                TextPromptMessageContent(type='text', data=user_prompt),
-                ImagePromptMessageContent(type='image', url=url)
-            ]
-            
-            # --- 调用模型 (使用前面已验证可用的 robust 逻辑) ---
             try:
                 if hasattr(self, 'invoke_model'):
-                    response = self.invoke_model(model=llm_model, messages=[UserPromptMessage(content=content_list)])
+                    response = self.invoke_model(model=llm_model, messages=messages)
                     result = response.message.content
                 elif hasattr(self, 'session') and hasattr(self.session, 'model'):
                     llm_service = getattr(self.session.model, 'llm', None)
                     if not llm_service: raise AttributeError("No 'llm' service found.")
-                    response = llm_service.invoke(model_config=llm_model, prompt_messages=[UserPromptMessage(content=content_list)], stream=False)
+                    response = llm_service.invoke(model_config=llm_model, prompt_messages=messages, stream=False)
                     if hasattr(response, 'message'): result = response.message.content
                     else: result = getattr(response, 'content', str(response))
                 else:
@@ -86,12 +100,11 @@ class SingleColumnImageAnalysisTool(Tool):
                 result = re.sub(r'<think>.*?</think>', '', result, flags=re.DOTALL)
                 result = re.sub(r'<thought>.*?</thought>', '', result, flags=re.DOTALL)
                 result = result.strip()
-            
+
             while out_info['col_idx'] >= len(df.columns): 
                 df[len(df.columns)] = ""
             df.iat[i, out_info['col_idx']] = result
-        
-        # ... 保存文件部分不变 ...
+
         data, fname = ExcelProcessor.save_file(df, is_xlsx, origin_name)
         mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' if is_xlsx else 'text/csv'
         yield self.create_blob_message(blob=data, meta={'mime_type': mime_type, 'save_as': fname})

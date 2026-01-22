@@ -9,6 +9,7 @@ class ExcelProcessor:
         content = file_obj.blob
         filename = file_obj.filename.lower()
         
+        # File type validation
         supported_extensions = ['.csv', '.xlsx', '.xls']
         if not any(filename.endswith(ext) for ext in supported_extensions):
             raise ValueError(
@@ -26,7 +27,8 @@ class ExcelProcessor:
         else:
             df = pd.read_excel(io.BytesIO(content))
             is_xlsx = True
-        
+            
+        # 填充 nan 为空字符串，防止处理时报错
         df = df.fillna("")
         return df, is_xlsx, file_obj.filename
 
@@ -36,8 +38,21 @@ class ExcelProcessor:
         prefix = "analyzed_"
         new_filename = f"{prefix}{original_filename}"
 
+        # === 修复：清除自动生成的数字列名 ===
+        # Pandas 新增列时默认使用整数索引 (如 8) 作为列名
+        # 我们在这里把所有整数类型的列名替换为空字符串，防止在 Excel 第一行显示 "8"
+        new_columns = []
+        for col in df.columns:
+            if isinstance(col, int):
+                new_columns.append("") # 将数字标题改为空白
+            else:
+                new_columns.append(col)
+        df.columns = new_columns
+        # =================================
+
         if is_xlsx:
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                # index=False 表示不写入行号(0,1,2...)，但默认会写入列名(Header)
                 df.to_excel(writer, index=False)
         else:
             df.to_csv(output, index=False, encoding='utf-8-sig')
@@ -66,7 +81,6 @@ class ExcelProcessor:
         for part in parts:
             part = part.strip()
             # 规则1: 必须包含数字 (行号)。拒绝 "HHH", "I", "A:B"
-            # 允许: "A1", "A1:A10"
             if not re.search(r'[0-9]', part):
                 return False, (
                     f"格式错误: 表达式 '{part}' 缺少起始行号。\n"
@@ -74,7 +88,6 @@ class ExcelProcessor:
                 )
 
             # 规则2: 正则严格匹配 [字母][数字] optionally [: [字母][数字]]
-            # ^[A-Z]+[0-9]+(:[A-Z]+[0-9]+)?$
             if not re.match(r'^[A-Z]+[0-9]+(:[A-Z]+[0-9]+)?$', part):
                 return False, f"格式错误: 无法解析 '{part}'。请检查格式 (示例: 'A2' 或 'A2:A10')。"
 
@@ -91,7 +104,7 @@ class ExcelProcessor:
     @staticmethod
     def parse_range(range_str: str, max_rows: int) -> Dict[str, Any]:
         """
-        解析逻辑
+        解析 Excel 坐标范围
         """
         range_str = range_str.upper().strip().replace('：', ':')
         parts = range_str.split(':')
@@ -114,8 +127,8 @@ class ExcelProcessor:
         
         if len(parts) > 1:
             end_col, end_row_raw = parse_single(parts[1])
-            # 用户输入的 range 是 inclusive 的 (D2:D10 包含 10)
-            # 我们的 target_rows 使用 range(start, end + 1)，所以这里保持 raw index
+            # 修正: 用户输入的范围是 inclusive 的，但 range() 也是 inclusive 处理逻辑在外面
+            # 这里只需确保不超过 max_rows
             end_row = min(end_row_raw, max_rows - 1)
         else:
             end_col = start_col
@@ -125,7 +138,7 @@ class ExcelProcessor:
             'col_idx': start_col,
             'start_row': start_row,
             'end_row': end_row,
-            'col_name': re.match(r"([A-Z]+)", parts[0]).group(1) # 返回列名方便报错
+            'col_name': re.match(r"([A-Z]+)", parts[0]).group(1)
         }
 
     @staticmethod
