@@ -9,69 +9,57 @@ from tools.utils import ExcelProcessor
 
 class MultiColumnImageAnalysisTool(Tool):
     def _invoke(self, tool_parameters: dict[str, Any]) -> Generator[ToolInvokeMessage]:
-        # 1. 获取参数
+        # ... params ...
         llm_model = tool_parameters.get('model_config')
         file_obj = tool_parameters.get('upload_file')
-        img_cols = tool_parameters.get('image_columns')
-        out_col = tool_parameters.get('output_column')
+        img_cols = tool_parameters.get('image_columns', '').strip()
+        out_col = tool_parameters.get('output_column', '').strip()
         user_prompt = tool_parameters.get('prompt')
 
-        # 2. 校验参数是否有效
         if not isinstance(llm_model, dict):
-            yield self.create_text_message(f"Error: Parameter 'model_config' is invalid. Expected dict, got {type(llm_model)}. Please delete and re-add this node in the workflow.")
+            yield self.create_text_message(f"Error: model_config invalid.")
             return
 
         if not file_obj:
             yield self.create_text_message("Error: No file uploaded.")
             return
 
-        # 3. 读取文件
+        # 1. 校验
+        is_valid, err_msg = ExcelProcessor.validate_coord_format(img_cols, is_single_col_tool=False)
+        if not is_valid:
+            yield self.create_text_message(f"[输入列错误] {err_msg}")
+            return
+
+        is_valid_out, err_msg_out = ExcelProcessor.validate_coord_format(out_col, is_single_col_tool=True)
+        if not is_valid_out:
+            yield self.create_text_message(f"[输出列错误] {err_msg_out}")
+            return
+
         df, is_xlsx, origin_name = ExcelProcessor.load_file(file_obj)
         max_rows = len(df)
         
-        # 3. 解析坐标
         try:
-            out_info = ExcelProcessor.parse_range(out_col, max_rows)
             in_infos = ExcelProcessor.get_indices_list(img_cols, max_rows)
+            out_info = ExcelProcessor.parse_range(out_col, max_rows)
         except Exception as e:
             yield self.create_text_message(f"Excel coordinate error: {str(e)}")
             return
 
-        # 表达式校验
-        # 单列分析只支持单列表达式（如 "D2" 或 "D2:D10"）
-        # 多列分析支持多列表达式（如 "A2,B2" 或 "A2:A12,B2:B12"）
-        if ',' in img_cols:
-            # 多列分析：支持多列表达式
-            pass
-        else:
-            # 单列分析：不支持多列表达式
-            if ':' in img_cols and img_cols.count(',') == 0:
-                # "D2:D10" 格式，单列范围，支持
-                pass
-            elif ':' not in img_cols and img_cols.count(',') == 0:
-                # "D2" 格式，单列，支持
-                pass
-            else:
-                # 单列分析不支持多列表达式
-                yield self.create_text_message(
-                    f"Error: Single column analysis only supports single column expressions (e.g., 'D2' or 'D2:D10'). "
-                    f"For multiple columns, please use Multi-Column Analysis tool instead."
-                )
-                return
-
-        # 计算所有输入列的行范围（用于确定要分析的行）
-        input_row_ranges = []
+        # 2. 边界检查
         for info in in_infos:
-            input_row_ranges.append((info['start_row'], info['end_row']))
-        
-        # 确定要分析的行范围（所有输入列的并集）
-        min_input_row = min(info['start_row'] for info in in_infos) if in_infos else 0
-        max_input_row = max(info['end_row'] for info in in_infos) if in_infos else max_rows - 1
-        
-        target_rows = range(min_input_row, max_input_row + 1)
+            if info['col_idx'] >= len(df.columns):
+                 yield self.create_text_message(f"错误: 图片输入列 '{info['col_name']}' 不存在.")
+                 return
 
-        # 4. 循环处理
+        if not in_infos:
+            target_rows = range(0, 0)
+        else:
+            min_input_row = min(info['start_row'] for info in in_infos)
+            max_input_row = max(info['end_row'] for info in in_infos)
+            target_rows = range(min_input_row, max_input_row + 1)
+
         for i in target_rows:
+            # ... 循环体 ...
             content_list = [TextPromptMessageContent(type='text', data=user_prompt)]
             has_img = False
 
@@ -85,73 +73,33 @@ class MultiColumnImageAnalysisTool(Tool):
                     except IndexError:
                         pass
             
-            if not has_img: 
-                continue
+            if not has_img: continue
             
-            # === 最终修复：调用模型 ===
+            # --- 模型调用 (Robust) ---
             try:
-                # 方案 A: 新版 SDK 标准调用 (未来兼容)
                 if hasattr(self, 'invoke_model'):
                     response = self.invoke_model(model=llm_model, messages=[UserPromptMessage(content=content_list)])
                     result = response.message.content
-                
-                # 方案 B: 针对你当前环境的修复 (仿照 DataSummaryTool)
-                # 路径: self.session -> .model -> .llm -> .invoke
                 elif hasattr(self, 'session') and hasattr(self.session, 'model'):
-                    # 1. 获取 LLM 能力对象
                     llm_service = getattr(self.session.model, 'llm', None)
-                    
-                    if not llm_service:
-                        raise AttributeError(f"ModelInvocations 缺少 'llm' 属性。可用属性: {dir(self.session.model)}")
-                    
-                    # 2. 调用 invoke
-                    # 注意：Excel处理通常设为 stream=False 以直接获取完整结果
-                    response = llm_service.invoke(
-                        model_config=llm_model,
-                        prompt_messages=[UserPromptMessage(content=content_list)],  # 注意参数名变成了 prompt_messages
-                        stream=False              # 关闭流式，直接拿结果
-                    )
-                    
-                    # 3. 解析结果 (非流式返回的是 LLMResult)
-                    if hasattr(response, 'message'):
-                         result = response.message.content
-                    else:
-                         # 防御性代码：有些旧版本直接返回 message 对象
-                         result = getattr(response, 'content', str(response))
-
+                    if not llm_service: raise AttributeError("No 'llm' service found.")
+                    response = llm_service.invoke(model_config=llm_model, prompt_messages=[UserPromptMessage(content=content_list)], stream=False)
+                    if hasattr(response, 'message'): result = response.message.content
+                    else: result = getattr(response, 'content', str(response))
                 else:
-                    raise AttributeError("无法找到可用的模型调用接口 (invoke_model 或 session.model.llm)")
-
+                    raise AttributeError("No invoke interface found.")
             except Exception as e:
-                # 错误处理
-                import traceback
-                print(f"Error invoking model: {e}\n{traceback.format_exc()}")
                 result = f"LLM Error: {str(e)}"
 
-            # ==========================================
-            # 清洗思考过程
-            # ==========================================
             if result and isinstance(result, str):
-                # 移除 DeepSeek 等模型的思考标签 </think>...
-                result = re.sub(r'</think>.*?</think>', '', result, flags=re.DOTALL)
-                # 移除其他可能的思考标签
+                result = re.sub(r'<think>.*?</think>', '', result, flags=re.DOTALL)
                 result = re.sub(r'<thought>.*?</thought>', '', result, flags=re.DOTALL)
-                # 去除首尾空白
                 result = result.strip()
-            # ==========================================
 
-            # 写入结果
             while out_info['col_idx'] >= len(df.columns): 
                 df[len(df.columns)] = ""
             df.iat[i, out_info['col_idx']] = result
 
-        # 5. 保存并返回文件
         data, fname = ExcelProcessor.save_file(df, is_xlsx, origin_name)
         mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' if is_xlsx else 'text/csv'
-        yield self.create_blob_message(
-            blob=data,
-            meta={
-                'mime_type': mime_type,
-                'save_as': fname
-            }
-        )
+        yield self.create_blob_message(blob=data, meta={'mime_type': mime_type, 'save_as': fname})

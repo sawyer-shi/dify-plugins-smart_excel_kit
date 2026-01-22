@@ -9,7 +9,6 @@ class ExcelProcessor:
         content = file_obj.blob
         filename = file_obj.filename.lower()
         
-        # File type validation
         supported_extensions = ['.csv', '.xlsx', '.xls']
         if not any(filename.endswith(ext) for ext in supported_extensions):
             raise ValueError(
@@ -27,6 +26,8 @@ class ExcelProcessor:
         else:
             df = pd.read_excel(io.BytesIO(content))
             is_xlsx = True
+        
+        df = df.fillna("")
         return df, is_xlsx, file_obj.filename
 
     @staticmethod
@@ -45,23 +46,54 @@ class ExcelProcessor:
         return output.read(), new_filename
 
     @staticmethod
+    def validate_coord_format(coord: str, is_single_col_tool: bool) -> Tuple[bool, str]:
+        """
+        表达式最严校验：必须包含行号
+        """
+        if not coord or not coord.strip():
+            return False, "Column expression cannot be empty."
+
+        coord = coord.strip().upper().replace('：', ':').replace('，', ',')
+        is_multi_expr = ',' in coord
+        
+        if is_single_col_tool and is_multi_expr:
+            return False, (
+                f"格式错误: 单列分析工具不支持多列语法 '{coord}'。\n"
+                f"请使用 'D2' 或 'D2:D10' 格式。"
+            )
+
+        parts = coord.split(',')
+        for part in parts:
+            part = part.strip()
+            # 规则1: 必须包含数字 (行号)。拒绝 "HHH", "I", "A:B"
+            # 允许: "A1", "A1:A10"
+            if not re.search(r'[0-9]', part):
+                return False, (
+                    f"格式错误: 表达式 '{part}' 缺少起始行号。\n"
+                    f"请明确指定开始行，例如 'H2' (代表H列从第2行开始) 或 'I1'。"
+                )
+
+            # 规则2: 正则严格匹配 [字母][数字] optionally [: [字母][数字]]
+            # ^[A-Z]+[0-9]+(:[A-Z]+[0-9]+)?$
+            if not re.match(r'^[A-Z]+[0-9]+(:[A-Z]+[0-9]+)?$', part):
+                return False, f"格式错误: 无法解析 '{part}'。请检查格式 (示例: 'A2' 或 'A2:A10')。"
+
+            # 规则3: 校验冒号左右是否同一列 (仅针对单列工具)
+            if is_single_col_tool and ':' in part:
+                sub_parts = part.split(':')
+                col_a = re.match(r"([A-Z]+)", sub_parts[0]).group(1)
+                col_b = re.match(r"([A-Z]+)", sub_parts[1]).group(1)
+                if col_a != col_b:
+                    return False, f"逻辑错误: 单列工具不支持跨列范围 '{part}'。请使用多列分析工具。"
+
+        return True, ""
+
+    @staticmethod
     def parse_range(range_str: str, max_rows: int) -> Dict[str, Any]:
         """
-        Parse Excel coordinate range expression
-        
-        Supported formats:
-        - Single column range: "D2" means column D from row 2 to the last row
-        - Column range: "D2:D10" means column D from row 2 to row 10
-        - Multi-column range: "A2,B2" means column A from row 2, column B from row 2 (two full columns)
-        - Multi-column range: "A2:A12,B2:B12" means column A from row 2 to row 12, column B from row 2 to row 12
-        
-        Returns: {
-            'col_idx': column index (0-based),
-            'start_row': start row number (0-based),
-            'end_row': end row number (0-based, exclusive)
-        }
+        解析逻辑
         """
-        range_str = range_str.upper().strip()
+        range_str = range_str.upper().strip().replace('：', ':')
         parts = range_str.split(':')
         
         def parse_single(s):
@@ -74,30 +106,29 @@ class ExcelProcessor:
             for char in col_str:
                 col_idx = col_idx * 26 + (ord(char) - ord('A')) + 1
             col_idx -= 1
-            return col_idx, max(0, row_num - 2)
+            
+            row_idx = max(0, row_num - 2) 
+            return col_idx, row_idx
 
         start_col, start_row = parse_single(parts[0])
         
         if len(parts) > 1:
-            end_col, end_row = parse_single(parts[1])
+            end_col, end_row_raw = parse_single(parts[1])
+            # 用户输入的 range 是 inclusive 的 (D2:D10 包含 10)
+            # 我们的 target_rows 使用 range(start, end + 1)，所以这里保持 raw index
+            end_row = min(end_row_raw, max_rows - 1)
         else:
-            end_col, end_row = start_col, max_rows - 1
+            end_col = start_col
+            end_row = max_rows - 1
 
         return {
             'col_idx': start_col,
             'start_row': start_row,
-            'end_row': min(end_row, max_rows - 1)
+            'end_row': end_row,
+            'col_name': re.match(r"([A-Z]+)", parts[0]).group(1) # 返回列名方便报错
         }
 
     @staticmethod
     def get_indices_list(coord_str: str, max_rows: int) -> List[Dict]:
-        """
-        Parse multiple coordinate range expressions
-        
-        Supported formats:
-        - "A2,B2" - multiple independent ranges, each can be a single column or column range
-        - "A2:A12,B2:B12" - multiple ranges with row limits
-        
-        Returns: list of range dictionaries
-        """
+        coord_str = coord_str.replace('，', ',').strip()
         return [ExcelProcessor.parse_range(c.strip(), max_rows) for c in coord_str.split(',')]
