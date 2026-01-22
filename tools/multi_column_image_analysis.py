@@ -37,7 +37,38 @@ class MultiColumnImageAnalysisTool(Tool):
             yield self.create_text_message(f"Excel coordinate error: {str(e)}")
             return
 
-        target_rows = range(out_info['start_row'], out_info['end_row'] + 1)
+        # 表达式校验
+        # 单列分析只支持单列表达式（如 "D2" 或 "D2:D10"）
+        # 多列分析支持多列表达式（如 "A2,B2" 或 "A2:A12,B2:B12"）
+        if ',' in img_cols:
+            # 多列分析：支持多列表达式
+            pass
+        else:
+            # 单列分析：不支持多列表达式
+            if ':' in img_cols and img_cols.count(',') == 0:
+                # "D2:D10" 格式，单列范围，支持
+                pass
+            elif ':' not in img_cols and img_cols.count(',') == 0:
+                # "D2" 格式，单列，支持
+                pass
+            else:
+                # 单列分析不支持多列表达式
+                yield self.create_text_message(
+                    f"Error: Single column analysis only supports single column expressions (e.g., 'D2' or 'D2:D10'). "
+                    f"For multiple columns, please use Multi-Column Analysis tool instead."
+                )
+                return
+
+        # 计算所有输入列的行范围（用于确定要分析的行）
+        input_row_ranges = []
+        for info in in_infos:
+            input_row_ranges.append((info['start_row'], info['end_row']))
+        
+        # 确定要分析的行范围（所有输入列的并集）
+        min_input_row = min(info['start_row'] for info in in_infos) if in_infos else 0
+        max_input_row = max(info['end_row'] for info in in_infos) if in_infos else max_rows - 1
+        
+        target_rows = range(min_input_row, max_input_row + 1)
 
         # 4. 循环处理
         for i in target_rows:

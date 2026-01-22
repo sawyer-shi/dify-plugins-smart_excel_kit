@@ -46,6 +46,16 @@ class SingleColumnTextAnalysisTool(Tool):
             yield self.create_text_message(f"Excel coordinate error: {str(e)}")
             return
 
+        # 表达式校验
+        # 单列分析只支持单列表达式（如 "D2" 或 "D2:D10"）
+        if ',' in input_coord:
+            # 不支持多列表达式
+            yield self.create_text_message(
+                f"Error: Single column analysis only supports single column expressions (e.g., 'D2' or 'D2:D10'). "
+                f"For multiple columns, please use Multi-Column Analysis tool instead."
+            )
+            return
+
         target_rows = range(rows_range['start_row'], rows_range['end_row'] + 1)
         
         # 5. 循环处理
