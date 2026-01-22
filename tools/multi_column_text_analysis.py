@@ -1,5 +1,6 @@
 from collections.abc import Generator
 from typing import Any
+import re
 
 from dify_plugin import Tool
 from dify_plugin.entities.tool import ToolInvokeMessage
@@ -98,6 +99,18 @@ class MultiColumnTextAnalysisTool(Tool):
                 import traceback
                 print(f"Error invoking model: {e}\n{traceback.format_exc()}")
                 result = f"LLM Error: {str(e)}"
+
+            # ==========================================
+            # 清洗思考过程
+            # ==========================================
+            if result and isinstance(result, str):
+                # 移除 DeepSeek 等模型的思考标签 </think>...
+                result = re.sub(r'</think>.*?</think>', '', result, flags=re.DOTALL)
+                # 移除其他可能的思考标签
+                result = re.sub(r'<thought>.*?</thought>', '', result, flags=re.DOTALL)
+                # 去除首尾空白
+                result = result.strip()
+            # ==========================================
 
             # 写入结果
             while out_info['col_idx'] >= len(df.columns): 
