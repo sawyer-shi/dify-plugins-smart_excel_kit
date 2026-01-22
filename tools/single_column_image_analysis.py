@@ -47,7 +47,8 @@ class SingleColumnImageAnalysisTool(Tool):
             )
             return
 
-        target_rows = range(out_info['start_row'], out_info['end_row'] + 1)
+        # 使用输入列的行范围来确定要分析的行
+        target_rows = range(in_info['start_row'], in_info['end_row'] + 1)
 
         # 4. 循环处理
         for i in target_rows:

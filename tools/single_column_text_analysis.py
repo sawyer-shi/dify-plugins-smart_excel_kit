@@ -56,7 +56,8 @@ class SingleColumnTextAnalysisTool(Tool):
             )
             return
 
-        target_rows = range(rows_range['start_row'], rows_range['end_row'] + 1)
+        # 使用输入列的行范围来确定要分析的行
+        target_rows = range(in_info['start_row'], in_info['end_row'] + 1)
         
         # 5. 循环处理
         for i in target_rows:
