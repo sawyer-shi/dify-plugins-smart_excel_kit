@@ -1,5 +1,5 @@
 identity:
-  author: custom_developer
+  author: "sawyer-shi"
   name: multi_column_image_analysis
   label:
     en_US: Multi Column Image Analysis
@@ -11,14 +11,14 @@ description:
   llm: Analyze multiple images with prompt.
 class_name: MultiColumnImageAnalysisTool
 parameters:
-  - name: llm_model
+  - name: model_config
     type: model-selector
     scope: llm
     required: true
     label:
       en_US: Vision Model
       zh_Hans: 视觉大模型
-    form: llm
+    form: form
     human_description:
       en_US: The vision model to use for image analysis.
       zh_Hans: 用于图片分析的视觉大模型。

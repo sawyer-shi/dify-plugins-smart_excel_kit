@@ -9,13 +9,22 @@ from tools.utils import ExcelProcessor
 class MultiColumnImageAnalysisTool(Tool):
     def _invoke(self, tool_parameters: dict[str, Any]) -> Generator[ToolInvokeMessage]:
         # 1. 获取参数
-        llm_model = tool_parameters['llm_model']
-        file_obj = tool_parameters['upload_file']
-        img_cols = tool_parameters['image_columns']
-        out_col = tool_parameters['output_column']
-        user_prompt = tool_parameters['prompt']
+        llm_model = tool_parameters.get('model_config')
+        file_obj = tool_parameters.get('upload_file')
+        img_cols = tool_parameters.get('image_columns')
+        out_col = tool_parameters.get('output_column')
+        user_prompt = tool_parameters.get('prompt')
 
-        # 2. 读取文件
+        # 2. 校验参数是否有效
+        if not isinstance(llm_model, dict):
+            yield self.create_text_message(f"Error: Parameter 'model_config' is invalid. Expected dict, got {type(llm_model)}. Please delete and re-add this node in the workflow.")
+            return
+
+        if not file_obj:
+            yield self.create_text_message("Error: No file uploaded.")
+            return
+
+        # 3. 读取文件
         df, is_xlsx, origin_name = ExcelProcessor.load_file(file_obj)
         max_rows = len(df)
         
@@ -61,4 +70,11 @@ class MultiColumnImageAnalysisTool(Tool):
 
         # 5. 保存并返回文件
         data, fname = ExcelProcessor.save_file(df, is_xlsx, origin_name)
-        yield self.create_blob_message(blob=data, meta={'mime_type': 'application/octet-stream'}, save_as=fname)
+        mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' if is_xlsx else 'text/csv'
+        yield self.create_blob_message(
+            blob=data,
+            meta={
+                'mime_type': mime_type,
+                'save_as': fname
+            }
+        )

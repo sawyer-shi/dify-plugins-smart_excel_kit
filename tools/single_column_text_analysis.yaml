@@ -1,5 +1,5 @@
 identity:
-  author: custom_developer
+  author: "sawyer-shi"
   name: single_column_text_analysis
   label:
     en_US: Single Column Text Analysis
@@ -11,14 +11,14 @@ description:
   llm: Analyze a single column of text with a custom prompt.
 class_name: SingleColumnTextAnalysisTool
 parameters:
-  - name: llm_model
+  - name: model_config
     type: model-selector
     scope: llm
     required: true
     label:
       en_US: LLM Model
       zh_Hans: LLM 模型
-    form: llm
+    form: form
     human_description:
       en_US: The LLM model to use for text analysis.
       zh_Hans: 用于文本分析的 LLM 模型。
