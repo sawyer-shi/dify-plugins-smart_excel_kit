@@ -56,11 +56,44 @@ class MultiColumnImageAnalysisTool(Tool):
             if not has_img: 
                 continue
             
-            # 调用模型
+            # === 最终修复：调用模型 ===
             try:
-                response = self.invoke_model(model=llm_model, messages=[UserPromptMessage(content=content_list)])
-                result = response.message.content
+                # 方案 A: 新版 SDK 标准调用 (未来兼容)
+                if hasattr(self, 'invoke_model'):
+                    response = self.invoke_model(model=llm_model, messages=[UserPromptMessage(content=content_list)])
+                    result = response.message.content
+                
+                # 方案 B: 针对你当前环境的修复 (仿照 DataSummaryTool)
+                # 路径: self.session -> .model -> .llm -> .invoke
+                elif hasattr(self, 'session') and hasattr(self.session, 'model'):
+                    # 1. 获取 LLM 能力对象
+                    llm_service = getattr(self.session.model, 'llm', None)
+                    
+                    if not llm_service:
+                        raise AttributeError(f"ModelInvocations 缺少 'llm' 属性。可用属性: {dir(self.session.model)}")
+                    
+                    # 2. 调用 invoke
+                    # 注意：Excel处理通常设为 stream=False 以直接获取完整结果
+                    response = llm_service.invoke(
+                        model_config=llm_model,
+                        prompt_messages=[UserPromptMessage(content=content_list)],  # 注意参数名变成了 prompt_messages
+                        stream=False              # 关闭流式，直接拿结果
+                    )
+                    
+                    # 3. 解析结果 (非流式返回的是 LLMResult)
+                    if hasattr(response, 'message'):
+                         result = response.message.content
+                    else:
+                         # 防御性代码：有些旧版本直接返回 message 对象
+                         result = getattr(response, 'content', str(response))
+
+                else:
+                    raise AttributeError("无法找到可用的模型调用接口 (invoke_model 或 session.model.llm)")
+
             except Exception as e:
+                # 错误处理
+                import traceback
+                print(f"Error invoking model: {e}\n{traceback.format_exc()}")
                 result = f"LLM Error: {str(e)}"
 
             # 写入结果
