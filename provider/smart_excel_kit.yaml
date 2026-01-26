@@ -5,8 +5,8 @@ identity:
     en_US: "smart_excel_kit"
     zh_Hans: "smart_excel_kit"
   description:
-    en_US: "Local Smart Excel Kit: Analyze and summarize the text or image data in the Excel/CSV table through the large model you provided, and write the results back into the table and output the file."
-    zh_Hans: "本地智能多维表格：通过你提供的大模型对 Excel/CSV 表格中的文本或图片数据进行分析、总结并将结果写回表格并输出文件。"
+    en_US: "Local Smart Excel Kit: Analyze and summarize the text or image data in the Excel/CSV table through the large model you provided, and write the results back into the table and output the Excel file."
+    zh_Hans: "本地智能多维表格：通过你提供的大模型对 Excel/CSV 表格中的文本或图片数据进行分析、总结并将结果写回表格并输出 Excel 文件。"
   icon: "icon.png"
 tools:
   - tools/single_column_text_analysis.yaml

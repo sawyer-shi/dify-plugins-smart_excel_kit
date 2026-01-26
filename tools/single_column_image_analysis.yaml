@@ -61,7 +61,7 @@ parameters:
     required: true
     label:
       en_US: Prompt
-      zh_Hans: 提示词
+      zh_Hans: 提示词指令
     form: llm
     human_description:
       en_US: Instructions for vision model to analyze images.
