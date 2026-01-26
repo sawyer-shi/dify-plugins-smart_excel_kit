@@ -21,10 +21,10 @@ class MultiColumnTextAnalysisTool(Tool):
         if not file_obj: yield self.create_text_message("Error: No file uploaded."); return
 
         is_valid, err_msg = ExcelProcessor.validate_coord_format(input_coords, is_single_col_tool=False)
-        if not is_valid: yield self.create_text_message(f"[输入列错误] {err_msg}"); return
+        if not is_valid: yield self.create_text_message(f"[Input Column Error] {err_msg}"); return
 
         is_valid_out, err_msg_out = ExcelProcessor.validate_coord_format(output_coord, is_single_col_tool=True)
-        if not is_valid_out: yield self.create_text_message(f"[输出列错误] {err_msg_out}"); return
+        if not is_valid_out: yield self.create_text_message(f"[Output Column Error] {err_msg_out}"); return
 
         # === 接收 wb ===
         df, wb, is_xlsx, origin_name = ExcelProcessor.load_file(file_obj)
@@ -37,7 +37,7 @@ class MultiColumnTextAnalysisTool(Tool):
 
         for info in in_infos:
             if info['col_idx'] >= len(df.columns):
-                yield self.create_text_message(f"错误: 输入列 '{info['col_name']}' 不存在 (超出文件最大列数)."); return
+                yield self.create_text_message(f"Error: Input column '{info['col_name']}' does not exist (exceeds maximum column count)."); return
 
         if not in_infos: target_rows = range(0, 0)
         else:
@@ -59,7 +59,7 @@ class MultiColumnTextAnalysisTool(Tool):
             content_str = " | ".join(row_data)
             if not content_str.strip(): continue
 
-            full_content = f"{user_prompt}\n\n[待分析数据]: {content_str}"
+            full_content = f"{user_prompt}\n\n[Data to analyze]: {content_str}"
             messages = [UserPromptMessage(content=[TextPromptMessageContent(type='text', data=full_content)])]
 
             try:

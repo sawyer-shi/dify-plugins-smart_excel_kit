@@ -24,10 +24,10 @@ class SingleColumnTextAnalysisTool(Tool):
             return
 
         is_valid, err_msg = ExcelProcessor.validate_coord_format(input_coord, is_single_col_tool=True)
-        if not is_valid: yield self.create_text_message(f"[输入列错误] {err_msg}"); return
+        if not is_valid: yield self.create_text_message(f"[Input Column Error] {err_msg}"); return
         
         is_valid_out, err_msg_out = ExcelProcessor.validate_coord_format(output_coord, is_single_col_tool=True)
-        if not is_valid_out: yield self.create_text_message(f"[输出列错误] {err_msg_out}"); return
+        if not is_valid_out: yield self.create_text_message(f"[Output Column Error] {err_msg_out}"); return
 
         # === 核心修改: 接收 wb 对象 ===
         df, wb, is_xlsx, origin_name = ExcelProcessor.load_file(file_obj)
@@ -40,7 +40,7 @@ class SingleColumnTextAnalysisTool(Tool):
             yield self.create_text_message(f"Coordinate Parse Error: {str(e)}"); return
 
         if in_info['col_idx'] >= len(df.columns):
-            yield self.create_text_message(f"错误: 您请求分析列 '{in_info['col_name']}'，但上传的文件只有 {len(df.columns)} 列。"); return
+            yield self.create_text_message(f"Error: You requested to analyze column '{in_info['col_name']}', but the uploaded file only has {len(df.columns)} columns."); return
 
         target_rows = range(in_info['start_row'], in_info['end_row'] + 1)
         
@@ -54,7 +54,7 @@ class SingleColumnTextAnalysisTool(Tool):
 
             if not content or content.lower() == 'nan' or not content.strip(): continue
 
-            full_content = f"{user_prompt}\n\n[待分析内容]:\n{content}"
+            full_content = f"{user_prompt}\n\n[Content to analyze]:\n{content}"
             messages = [UserPromptMessage(content=[TextPromptMessageContent(type='text', data=full_content)])]
 
             try:

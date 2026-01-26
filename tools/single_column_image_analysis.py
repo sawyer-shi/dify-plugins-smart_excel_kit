@@ -19,10 +19,10 @@ class SingleColumnImageAnalysisTool(Tool):
         if not file_obj: yield self.create_text_message("Error: No file uploaded."); return
 
         is_valid, err_msg = ExcelProcessor.validate_coord_format(img_col, is_single_col_tool=True)
-        if not is_valid: yield self.create_text_message(f"[输入列错误] {err_msg}"); return
+        if not is_valid: yield self.create_text_message(f"[Input Column Error] {err_msg}"); return
         
         is_valid_out, err_msg_out = ExcelProcessor.validate_coord_format(out_col, is_single_col_tool=True)
-        if not is_valid_out: yield self.create_text_message(f"[输出列错误] {err_msg_out}"); return
+        if not is_valid_out: yield self.create_text_message(f"[Output Column Error] {err_msg_out}"); return
 
         # === 接收 wb ===
         df, wb, is_xlsx, origin_name = ExcelProcessor.load_file(file_obj)
@@ -34,7 +34,7 @@ class SingleColumnImageAnalysisTool(Tool):
         except Exception as e: yield self.create_text_message(f"Excel coordinate error: {str(e)}"); return
 
         if in_info['col_idx'] >= len(df.columns):
-             yield self.create_text_message(f"错误: 图片列 '{in_info['col_name']}' 超出文件范围."); return
+             yield self.create_text_message(f"Error: Image column '{in_info['col_name']}' exceeds file range."); return
 
         target_rows = range(in_info['start_row'], in_info['end_row'] + 1)
         ws = wb.active if (is_xlsx and wb) else None

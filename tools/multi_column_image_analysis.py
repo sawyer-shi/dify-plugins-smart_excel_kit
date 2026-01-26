@@ -21,10 +21,10 @@ class MultiColumnImageAnalysisTool(Tool):
         if not file_obj: yield self.create_text_message("Error: No file uploaded."); return
 
         is_valid, err_msg = ExcelProcessor.validate_coord_format(img_cols, is_single_col_tool=False)
-        if not is_valid: yield self.create_text_message(f"[输入列错误] {err_msg}"); return
+        if not is_valid: yield self.create_text_message(f"[Input Column Error] {err_msg}"); return
 
         is_valid_out, err_msg_out = ExcelProcessor.validate_coord_format(output_coord, is_single_col_tool=True)
-        if not is_valid_out: yield self.create_text_message(f"[输出列错误] {err_msg_out}"); return
+        if not is_valid_out: yield self.create_text_message(f"[Output Column Error] {err_msg_out}"); return
 
         # === 接收 wb ===
         df, wb, is_xlsx, origin_name = ExcelProcessor.load_file(file_obj)
@@ -36,7 +36,8 @@ class MultiColumnImageAnalysisTool(Tool):
         except Exception as e: yield self.create_text_message(f"Excel coordinate error: {str(e)}"); return
 
         for info in in_infos:
-            if info['col_idx'] >= len(df.columns): yield self.create_text_message(f"错误: 图片输入列 '{info['col_name']}' 不存在."); return
+            if info['col_idx'] >= len(df.columns):
+                 yield self.create_text_message(f"Error: Image input column '{info['col_name']}' does not exist."); return
 
         if not in_infos: target_rows = range(0, 0)
         else:
