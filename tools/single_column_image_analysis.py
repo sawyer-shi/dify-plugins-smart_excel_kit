@@ -9,55 +9,40 @@ from tools.utils import ExcelProcessor
 
 class SingleColumnImageAnalysisTool(Tool):
     def _invoke(self, tool_parameters: dict[str, Any]) -> Generator[ToolInvokeMessage]:
-        # ... 获取参数 ...
         llm_model = tool_parameters.get('model_config')
         file_obj = tool_parameters.get('upload_file')
         img_col = tool_parameters.get('image_column', '').strip()
         out_col = tool_parameters.get('output_column', '').strip()
         user_prompt = tool_parameters.get('prompt')
 
-        # ... 这里的基本参数校验保持不变 ...
-        if not isinstance(llm_model, dict):
-            yield self.create_text_message(f"Error: model_config invalid.")
-            return
-        if not file_obj:
-            yield self.create_text_message("Error: No file uploaded.")
-            return
+        if not isinstance(llm_model, dict): yield self.create_text_message(f"Error: model_config invalid."); return
+        if not file_obj: yield self.create_text_message("Error: No file uploaded."); return
 
-        # [新增] 严格格式校验
         is_valid, err_msg = ExcelProcessor.validate_coord_format(img_col, is_single_col_tool=True)
-        if not is_valid:
-            yield self.create_text_message(f"[输入列错误] {err_msg}")
-            return
+        if not is_valid: yield self.create_text_message(f"[输入列错误] {err_msg}"); return
         
         is_valid_out, err_msg_out = ExcelProcessor.validate_coord_format(out_col, is_single_col_tool=True)
-        if not is_valid_out:
-            yield self.create_text_message(f"[输出列错误] {err_msg_out}")
-            return
+        if not is_valid_out: yield self.create_text_message(f"[输出列错误] {err_msg_out}"); return
 
-        df, is_xlsx, origin_name = ExcelProcessor.load_file(file_obj)
+        # === 接收 wb ===
+        df, wb, is_xlsx, origin_name = ExcelProcessor.load_file(file_obj)
         max_rows = len(df)
         
         try:
             in_info = ExcelProcessor.parse_range(img_col, max_rows)
             out_info = ExcelProcessor.parse_range(out_col, max_rows)
-        except Exception as e:
-            yield self.create_text_message(f"Excel coordinate error: {str(e)}")
-            return
+        except Exception as e: yield self.create_text_message(f"Excel coordinate error: {str(e)}"); return
 
-        # [新增] 边界检查
         if in_info['col_idx'] >= len(df.columns):
-             yield self.create_text_message(f"错误: 图片列 '{in_info['col_name']}' 超出文件范围 (当前文件共 {len(df.columns)} 列).")
-             return
+             yield self.create_text_message(f"错误: 图片列 '{in_info['col_name']}' 超出文件范围."); return
 
         target_rows = range(in_info['start_row'], in_info['end_row'] + 1)
+        ws = wb.active if (is_xlsx and wb) else None
 
         for i in target_rows:
-            # ... 循环体逻辑保持之前修复过的版本 (含LLM调用和<think>清洗) ...
             try:
                 url = str(df.iat[i, in_info['col_idx']]).strip()
-            except IndexError:
-                continue
+            except IndexError: continue
 
             if not url or not url.startswith(('http', 'https')): continue
 
@@ -66,7 +51,6 @@ class SingleColumnImageAnalysisTool(Tool):
                 ImagePromptMessageContent(type='image', url=url)
             ]
             
-            # --- 调用模型 (使用前面已验证可用的 robust 逻辑) ---
             try:
                 if hasattr(self, 'invoke_model'):
                     response = self.invoke_model(model=llm_model, messages=[UserPromptMessage(content=content_list)])
@@ -77,21 +61,22 @@ class SingleColumnImageAnalysisTool(Tool):
                     response = llm_service.invoke(model_config=llm_model, prompt_messages=[UserPromptMessage(content=content_list)], stream=False)
                     if hasattr(response, 'message'): result = response.message.content
                     else: result = getattr(response, 'content', str(response))
-                else:
-                    raise AttributeError("No invoke interface found.")
-            except Exception as e:
-                result = f"LLM Error: {str(e)}"
+                else: raise AttributeError("No invoke interface found.")
+            except Exception as e: result = f"LLM Error: {str(e)}"
 
             if result and isinstance(result, str):
                 result = re.sub(r'<think>.*?</think>', '', result, flags=re.DOTALL)
                 result = re.sub(r'<thought>.*?</thought>', '', result, flags=re.DOTALL)
                 result = result.strip()
             
-            while out_info['col_idx'] >= len(df.columns): 
-                df[len(df.columns)] = ""
-            df.iat[i, out_info['col_idx']] = result
+            # === 写入 WB ===
+            if ws:
+                try: ws.cell(row=i+2, column=out_info['col_idx']+1).value = result
+                except: pass
+            else:
+                while out_info['col_idx'] >= len(df.columns): df[len(df.columns)] = ""
+                df.iat[i, out_info['col_idx']] = result
         
-        # ... 保存文件部分不变 ...
-        data, fname = ExcelProcessor.save_file(df, is_xlsx, origin_name)
-        mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' if is_xlsx else 'text/csv'
+        data, fname = ExcelProcessor.save_file(df, wb, is_xlsx, origin_name)
+        mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         yield self.create_blob_message(blob=data, meta={'mime_type': mime_type, 'save_as': fname})

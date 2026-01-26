@@ -2,15 +2,21 @@ import io
 import re
 import pandas as pd
 from typing import List, Dict, Tuple, Any
+from openpyxl import load_workbook
+from openpyxl.workbook import Workbook
 
 class ExcelProcessor:
     @staticmethod
-    def load_file(file_obj) -> Tuple[pd.DataFrame, bool, str]:
+    def load_file(file_obj) -> Tuple[pd.DataFrame, Any, bool, str]:
+        """
+        加载文件，同时返回 pandas DataFrame (用于读取数据) 和 openpyxl Workbook (用于保留格式写入)
+        Returns: (df, wb, is_xlsx, filename)
+        """
         content = file_obj.blob
         filename = file_obj.filename.lower()
         
         # File type validation
-        supported_extensions = ['.csv', '.xlsx', '.xls']
+        supported_extensions = ['.csv', '.xlsx']
         if not any(filename.endswith(ext) for ext in supported_extensions):
             raise ValueError(
                 f"Unsupported file type: {filename}. "
@@ -18,53 +24,57 @@ class ExcelProcessor:
                 f"Please upload a CSV or Excel file."
             )
         
+        wb = None
         if filename.endswith('.csv'):
             try:
                 df = pd.read_csv(io.BytesIO(content), encoding='utf-8')
             except UnicodeDecodeError:
                 df = pd.read_csv(io.BytesIO(content), encoding='gbk')
+            df = df.fillna("")
             is_xlsx = False
         else:
+            # 1. 用 Pandas 读取数据用于分析 (速度快，处理方便)
             df = pd.read_excel(io.BytesIO(content))
+            df = df.fillna("")
+            
+            # 2. 用 openpyxl 读取对象用于写入 (保留原始格式)
+            try:
+                wb = load_workbook(io.BytesIO(content))
+            except Exception:
+                wb = None # 如果加载失败，后续会回退到 Pandas 写入模式
+            
             is_xlsx = True
             
-        # 填充 nan 为空字符串，防止处理时报错
-        df = df.fillna("")
-        return df, is_xlsx, file_obj.filename
+        return df, wb, is_xlsx, file_obj.filename
 
     @staticmethod
-    def save_file(df: pd.DataFrame, is_xlsx: bool, original_filename: str) -> Tuple[bytes, str]:
+    def save_file(df: pd.DataFrame, wb: Any, is_xlsx: bool, original_filename: str) -> Tuple[bytes, str]:
         output = io.BytesIO()
-        prefix = "analyzed_"
-        new_filename = f"{prefix}{original_filename}"
+        
+        base_name = original_filename.rsplit('.', 1)[0]
+        new_filename = f"smart_{base_name}.xlsx"
 
-        # === 修复：清除自动生成的数字列名 ===
-        # Pandas 新增列时默认使用整数索引 (如 8) 作为列名
-        # 我们在这里把所有整数类型的列名替换为空字符串，防止在 Excel 第一行显示 "8"
-        new_columns = []
-        for col in df.columns:
-            if isinstance(col, int):
-                new_columns.append("") # 将数字标题改为空白
-            else:
-                new_columns.append(col)
-        df.columns = new_columns
-        # =================================
-
-        if is_xlsx:
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                # index=False 表示不写入行号(0,1,2...)，但默认会写入列名(Header)
-                df.to_excel(writer, index=False)
+        if is_xlsx and wb is not None:
+            # === 方案 A: 使用 openpyxl 直接保存 Workbook 对象 ===
+            # 这样可以保留原始文件的所有格式（颜色、字体、公式等）
+            wb.save(output)
         else:
-            df.to_csv(output, index=False, encoding='utf-8-sig')
+            # === 方案 B: CSV 或 Workbook 加载失败时的降级处理 ===
+            # 清除自动生成的数字列名
+            new_columns = ["" if isinstance(c, int) else c for c in df.columns]
+            df.columns = new_columns
+
+            if is_xlsx:
+                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    df.to_excel(writer, index=False)
+            else:
+                df.to_csv(output, index=False, encoding='utf-8-sig')
         
         output.seek(0)
         return output.read(), new_filename
 
     @staticmethod
     def validate_coord_format(coord: str, is_single_col_tool: bool) -> Tuple[bool, str]:
-        """
-        表达式最严校验：必须包含行号
-        """
         if not coord or not coord.strip():
             return False, "Column expression cannot be empty."
 
@@ -72,40 +82,27 @@ class ExcelProcessor:
         is_multi_expr = ',' in coord
         
         if is_single_col_tool and is_multi_expr:
-            return False, (
-                f"格式错误: 单列分析工具不支持多列语法 '{coord}'。\n"
-                f"请使用 'D2' 或 'D2:D10' 格式。"
-            )
+            return False, "格式错误: 单列分析工具不支持多列语法 (如 'A,B')，请使用 'D2' 格式。"
 
         parts = coord.split(',')
         for part in parts:
             part = part.strip()
-            # 规则1: 必须包含数字 (行号)。拒绝 "HHH", "I", "A:B"
             if not re.search(r'[0-9]', part):
-                return False, (
-                    f"格式错误: 表达式 '{part}' 缺少起始行号。\n"
-                    f"请明确指定开始行，例如 'H2' (代表H列从第2行开始) 或 'I1'。"
-                )
+                return False, f"格式错误: 表达式 '{part}' 缺少起始行号 (如 'H2')。"
 
-            # 规则2: 正则严格匹配 [字母][数字] optionally [: [字母][数字]]
             if not re.match(r'^[A-Z]+[0-9]+(:[A-Z]+[0-9]+)?$', part):
                 return False, f"格式错误: 无法解析 '{part}'。请检查格式 (示例: 'A2' 或 'A2:A10')。"
 
-            # 规则3: 校验冒号左右是否同一列 (仅针对单列工具)
             if is_single_col_tool and ':' in part:
                 sub_parts = part.split(':')
                 col_a = re.match(r"([A-Z]+)", sub_parts[0]).group(1)
                 col_b = re.match(r"([A-Z]+)", sub_parts[1]).group(1)
-                if col_a != col_b:
-                    return False, f"逻辑错误: 单列工具不支持跨列范围 '{part}'。请使用多列分析工具。"
+                if col_a != col_b: return False, "逻辑错误: 单列工具不支持跨列范围。请使用多列分析工具。"
 
         return True, ""
 
     @staticmethod
     def parse_range(range_str: str, max_rows: int) -> Dict[str, Any]:
-        """
-        解析 Excel 坐标范围
-        """
         range_str = range_str.upper().strip().replace('：', ':')
         parts = range_str.split(':')
         
@@ -116,8 +113,7 @@ class ExcelProcessor:
             row_num = int(match.group(2))
             
             col_idx = 0
-            for char in col_str:
-                col_idx = col_idx * 26 + (ord(char) - ord('A')) + 1
+            for char in col_str: col_idx = col_idx * 26 + (ord(char) - ord('A')) + 1
             col_idx -= 1
             
             row_idx = max(0, row_num - 2) 
@@ -127,8 +123,6 @@ class ExcelProcessor:
         
         if len(parts) > 1:
             end_col, end_row_raw = parse_single(parts[1])
-            # 修正: 用户输入的范围是 inclusive 的，但 range() 也是 inclusive 处理逻辑在外面
-            # 这里只需确保不超过 max_rows
             end_row = min(end_row_raw, max_rows - 1)
         else:
             end_col = start_col
