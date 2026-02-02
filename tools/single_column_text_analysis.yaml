@@ -2,8 +2,8 @@ identity:
   author: "sawyer-shi"
   name: single_column_text_analysis
   label:
-    en_US: Single Column Text Analysis
-    zh_Hans: 单列文本信息分析
+    en_US: Single Column Text Analysis--Output Excel
+    zh_Hans: 单列文本信息分析--输出Excel
 description:
   human:
     en_US: Analyze a single column of text with a custom prompt.

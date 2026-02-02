@@ -2,8 +2,8 @@ identity:
   author: "sawyer-shi"
   name: multi_column_text_analysis
   label:
-    en_US: Multi Column Text Analysis
-    zh_Hans: 多列文本信息分析
+    en_US: Multi Column Text Analysis--Output Excel
+    zh_Hans: 多列文本信息分析--输出Excel
 description:
   human:
     en_US: Analyze multiple columns of text.

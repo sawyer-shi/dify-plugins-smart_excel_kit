@@ -2,26 +2,26 @@ identity:
   name: chart_generator
   author: Sawyer
   label:
-    en_US: Chart Generator
-    zh_Hans: Excel 全能图表绘制
+    en_US: Chart Generator--Output Excel
+    zh_Hans: 全能图表绘制--输出Excel
 description:
   human:
     en_US: Analyze data and generate various types of Excel charts (Bar, Line, Pie, Radar, Scatter, Area, etc.) powered by LLM.
-    zh_Hans: 基于 LLM 分析数据，在 Excel 文件中自动绘制各种类型的图表（不仅仅是柱状图，包括雷达图、散点图、面积图、圆环图等）。
-  llm: Use this tool to generate visual charts in Excel. The tool automatically decides the best chart type (bar, line, scatter, radar, etc.) based on user request and data.
+    zh_Hans: 基于 LLM 分析数据，在 Excel 文件中自动绘制各种类型的图表（包括柱状图、折线图、雷达图、散点图、面积图、圆环图等）。
+  llm: Use this tool to generate visual charts in Excel. The tool automatically decides the best chart type (Bar, Line, Pie, Radar, Scatter, Area, etc.) based on user request and data.
 class_name: ChartGeneratorTool
 parameters:
   - name: upload_file
     type: file
     required: true
     label:
-      en_US: Upload Excel File
-      zh_Hans: 上传 Excel 文件
+      en_US: Upload Excel/CSV File
+      zh_Hans: 上传 Excel/CSV 文件
     form: llm
     human_description:
-      en_US: The Excel file to generate charts from.
-      zh_Hans: 用于生成图表的 Excel 文件。
-    llm_description: The Excel file to generate charts from.
+      en_US: The Excel/CSV file to generate charts from.
+      zh_Hans: 用于生成图表的 Excel/CSV 文件。
+    llm_description: The Excel/CSV file to generate charts from.
   - name: prompt
     type: string
     required: true

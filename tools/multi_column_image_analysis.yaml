@@ -2,8 +2,8 @@ identity:
   author: "sawyer-shi"
   name: multi_column_image_analysis
   label:
-    en_US: Multi Column Image Analysis
-    zh_Hans: 多列图片信息分析
+    en_US: Multi Column Image Analysis--Output Excel
+    zh_Hans: 多列图片信息分析--输出Excel
 description:
   human:
     en_US: Analyze multiple images with prompt.
