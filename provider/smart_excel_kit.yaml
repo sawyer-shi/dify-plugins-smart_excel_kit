@@ -13,6 +13,7 @@ tools:
   - tools/multi_column_text_analysis.yaml
   - tools/single_column_image_analysis.yaml
   - tools/multi_column_image_analysis.yaml
+  - tools/chart_generator.yaml
 extra:
   python:
     source: provider/smart_excel_kit.py

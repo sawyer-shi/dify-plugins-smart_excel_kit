@@ -1,0 +1,53 @@
+identity:
+  name: chart_generator
+  author: Sawyer
+  label:
+    en_US: Chart Generator
+    zh_Hans: Excel 全能图表绘制
+description:
+  human:
+    en_US: Analyze data and generate various types of Excel charts (Bar, Line, Pie, Radar, Scatter, Area, etc.) powered by LLM.
+    zh_Hans: 基于 LLM 分析数据，在 Excel 文件中自动绘制各种类型的图表（不仅仅是柱状图，包括雷达图、散点图、面积图、圆环图等）。
+  llm: Use this tool to generate visual charts in Excel. The tool automatically decides the best chart type (bar, line, scatter, radar, etc.) based on user request and data.
+class_name: ChartGeneratorTool
+parameters:
+  - name: upload_file
+    type: file
+    required: true
+    label:
+      en_US: Upload Excel File
+      zh_Hans: 上传 Excel 文件
+    form: llm
+    human_description:
+      en_US: The Excel file to generate charts from.
+      zh_Hans: 用于生成图表的 Excel 文件。
+    llm_description: The Excel file to generate charts from.
+  - name: prompt
+    type: string
+    required: true
+    label:
+      en_US: Chart Request
+      zh_Hans: 绘图需求
+    form: llm
+    placeholder:
+      en_US: "e.g., Draw a radar chart comparing Product A and B performance."
+      zh_Hans: "例如：帮我画一个雷达图对比A产品和B产品的各项指标，或者画一个散点图看身高体重的分布。"
+    human_description:
+      en_US: Description of the chart you want to generate.
+      zh_Hans: 你想要生成的图表描述。
+    llm_description: Description of the chart you want to generate.
+  - name: model_config
+    type: model-selector
+    scope: llm
+    required: true
+    label:
+      en_US: Model
+      zh_Hans: 决策模型
+    form: form
+    human_description:
+      en_US: The LLM model to use for chart configuration.
+      zh_Hans: 用于图表配置的 LLM 模型。
+    llm_description: The LLM model to use for chart configuration.
+extra:
+  python:
+    source: tools/chart_generator.py
