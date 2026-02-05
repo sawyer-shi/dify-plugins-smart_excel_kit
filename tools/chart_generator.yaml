@@ -43,11 +43,11 @@ parameters:
       zh_Hans: 绘图需求
     form: llm
     placeholder:
-      en_US: "e.g., Draw a radar chart comparing Product A and B performance."
-      zh_Hans: "例如：帮我画一个雷达图对比A产品和B产品的各项指标，或者画一个散点图看身高体重的分布。"
+      en_US: "e.g., Draw a radar chart."
+      zh_Hans: "例如：帮我画一个雷达图。"
     human_description:
-      en_US: Description of the chart you want to generate.
-      zh_Hans: 你想要生成的图表描述。
+      en_US: "e.g., Draw a radar chart."
+      zh_Hans: "例如：绘制一个柱状图。"
     llm_description: Description of the chart you want to generate.
   - name: model_config
     type: model-selector
