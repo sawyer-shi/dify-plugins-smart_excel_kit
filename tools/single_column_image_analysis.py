@@ -14,9 +14,11 @@ class SingleColumnImageAnalysisTool(Tool):
         img_col = tool_parameters.get('image_column', '').strip()
         out_col = tool_parameters.get('output_column', '').strip()
         user_prompt = tool_parameters.get('prompt')
+        sheet_number = tool_parameters.get('sheet_number', 1)
 
         if not isinstance(llm_model, dict): yield self.create_text_message(f"Error: model_config invalid."); return
         if not file_obj: yield self.create_text_message("Error: No file uploaded."); return
+        if not isinstance(sheet_number, int) or sheet_number <= 0: yield self.create_text_message("Error: sheet_number must be greater than 0."); return
 
         # 校验参数
         is_valid, err_msg = ExcelProcessor.validate_coord_format(img_col, is_single_col_tool=True)
@@ -26,7 +28,7 @@ class SingleColumnImageAnalysisTool(Tool):
         if not is_valid_out: yield self.create_text_message(f"[Output Error] {err_msg_out}"); return
 
         # === 核心修改：使用副本模式加载 ===
-        df, wb, is_xlsx, origin_name, path_in, path_out = ExcelProcessor.load_file_with_copy(file_obj)
+        df, wb, is_xlsx, origin_name, path_in, path_out = ExcelProcessor.load_file_with_copy(file_obj, sheet_number)
         max_rows = len(df)
         
         try:
@@ -44,7 +46,10 @@ class SingleColumnImageAnalysisTool(Tool):
                 yield self.create_text_message(f"Error: Column '{in_info['col_name']}' exceeds file range."); return
 
             target_rows = range(in_info['start_row'], in_info['end_row'] + 1)
-            ws = wb.active if (is_xlsx and wb) else None
+            if wb and sheet_number <= len(wb.worksheets):
+                ws = wb.worksheets[sheet_number - 1]
+            else:
+                ws = wb.active if (is_xlsx and wb) else None
 
             for i in target_rows:
                 # 构建消息列表：Prompt + (Images / URL-Images / Text)

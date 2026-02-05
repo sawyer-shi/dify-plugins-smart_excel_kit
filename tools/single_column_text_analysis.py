@@ -14,9 +14,11 @@ class SingleColumnTextAnalysisTool(Tool):
         input_coord = tool_parameters.get('input_column', '').strip()
         output_coord = tool_parameters.get('output_column', '').strip()
         user_prompt = tool_parameters.get('prompt')
+        sheet_number = tool_parameters.get('sheet_number', 1)
 
         if not isinstance(llm_model, dict): yield self.create_text_message(f"Error: model_config invalid."); return
         if not file_obj: yield self.create_text_message("Error: No file uploaded."); return
+        if not isinstance(sheet_number, int) or sheet_number <= 0: yield self.create_text_message("Error: sheet_number must be greater than 0."); return
 
         is_valid, err_msg = ExcelProcessor.validate_coord_format(input_coord, is_single_col_tool=True)
         if not is_valid: yield self.create_text_message(f"[Input Error] {err_msg}"); return
@@ -25,7 +27,7 @@ class SingleColumnTextAnalysisTool(Tool):
         if not is_valid_out: yield self.create_text_message(f"[Output Error] {err_msg_out}"); return
 
         # === FIX START: 使用新接口获取 path_in 和 path_out ===
-        df, wb, is_xlsx, origin_name, path_in, path_out = ExcelProcessor.load_file_with_copy(file_obj)
+        df, wb, is_xlsx, origin_name, path_in, path_out = ExcelProcessor.load_file_with_copy(file_obj, sheet_number)
         # === FIX END ===
         
         max_rows = len(df)
@@ -40,7 +42,10 @@ class SingleColumnTextAnalysisTool(Tool):
                 yield self.create_text_message(f"Error: Column exceeds range."); return
 
             target_rows = range(in_info['start_row'], in_info['end_row'] + 1)
-            ws = wb.active if (is_xlsx and wb) else None
+            if wb and sheet_number <= len(wb.worksheets):
+                ws = wb.worksheets[sheet_number - 1]
+            else:
+                ws = wb.active if (is_xlsx and wb) else None
 
             for i in target_rows:
                 try: content = str(df.iat[i, in_info['col_idx']])

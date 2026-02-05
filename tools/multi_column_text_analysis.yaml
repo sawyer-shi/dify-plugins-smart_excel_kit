@@ -34,6 +34,19 @@ parameters:
       en_US: The Excel or CSV file to analyze.
       zh_Hans: 要分析的 Excel 或 CSV 文件。
     llm_description: The Excel or CSV file to analyze.
+  - name: sheet_number
+    type: number
+    required: true
+    label:
+      en_US: Sheet Number
+      zh_Hans: Sheet页码
+    form: llm
+    human_description:
+      en_US: The sheet number to process (must be greater than 0).
+      zh_Hans: 要处理的sheet页码（必须大于0）。
+    llm_description: The sheet number to process (must be greater than 0).
+    default: 1
+    min: 1
   - name: input_columns
     type: string
     required: true

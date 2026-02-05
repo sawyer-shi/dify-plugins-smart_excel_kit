@@ -12,9 +12,12 @@ from openpyxl import load_workbook
 
 class ExcelProcessor:
     @staticmethod
-    def load_file_with_copy(file_obj) -> Tuple[pd.DataFrame, Any, bool, str, str, str]:
+    def load_file_with_copy(file_obj, sheet_number: int = 1) -> Tuple[pd.DataFrame, Any, bool, str, str, str]:
         """
         核心加载逻辑：
+        Args:
+            file_obj: 文件对象
+            sheet_number: sheet页码（从1开始）
         Returns: (df, wb, is_xlsx, best_filename, input_path, output_path)
         """
         content = file_obj.blob
@@ -65,13 +68,13 @@ class ExcelProcessor:
             else:
                 is_xlsx = True
                 # header=0 意味着第一行是表头
-                df = pd.read_excel(temp_input_path, header=0)
+                df = pd.read_excel(temp_input_path, header=0, sheet_name=sheet_number - 1)
                 df = df.fillna("")
                 
                 if ext in ['.xlsx', '.xlsm']:
                     try: 
                         # data_only=False 保证读到公式本身而不是结果，便于写入保留
-                        wb = load_workbook(temp_output_path) 
+                        wb = load_workbook(temp_output_path)
                     except Exception as e: 
                         print(f"Workbook load error: {e}")
                         wb = None
