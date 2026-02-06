@@ -5,8 +5,8 @@ identity:
     en_US: "smart_excel_kit"
     zh_Hans: "智能多维表"
   description:
-    en_US: "Local Smart Excel Kit: Uses your provided LLM to analyze, summarize, and generate charts from text or image data in Excel/CSV tables, outputting the result as an Excel file."
-    zh_Hans: "本地智能多维表：通过你提供的大模型对 Excel/CSV 表格中的文本或图片数据进行分析、总结、绘制图表Chart，并输出 Excel 文件。"
+    en_US: "Local Smart Excel Kit: Uses your provided LLM to analyze, summarize, generate charts, manipulate Excel/CSV tables, and outputting the result as an Excel file."
+    zh_Hans: "本地智能多维表：通过你提供的大模型对 Excel/CSV 表格进行分析、总结、绘制图表Chart、自由操控表格数据等，并输出 Excel 文件。"
   icon: "icon.png"
 tools:
   - tools/single_column_text_analysis.yaml
@@ -14,6 +14,7 @@ tools:
   - tools/single_column_image_analysis.yaml
   - tools/multi_column_image_analysis.yaml
   - tools/chart_generator.yaml
+  - tools/excel_manipulator.yaml
 extra:
   python:
     source: provider/smart_excel_kit.py
