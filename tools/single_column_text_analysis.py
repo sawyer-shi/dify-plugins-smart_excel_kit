@@ -1,5 +1,6 @@
 from collections.abc import Generator
 from typing import Any
+import os
 import re
 
 from dify_plugin import Tool
@@ -15,6 +16,7 @@ class SingleColumnTextAnalysisTool(Tool):
         output_coord = tool_parameters.get('output_column', '').strip()
         user_prompt = tool_parameters.get('prompt')
         sheet_number = tool_parameters.get('sheet_number', 1)
+        output_file_name = tool_parameters.get('output_file_name')
 
         if not isinstance(llm_model, dict): yield self.create_text_message(f"Error: model_config invalid."); return
         if not file_obj: yield self.create_text_message("Error: No file uploaded."); return
@@ -28,6 +30,8 @@ class SingleColumnTextAnalysisTool(Tool):
 
         # === FIX START: 使用新接口获取 path_in 和 path_out ===
         df, wb, is_xlsx, origin_name, path_in, path_out = ExcelProcessor.load_file_with_copy(file_obj, sheet_number)
+        if not output_file_name or not str(output_file_name).strip():
+            output_file_name = os.path.splitext(origin_name)[0]
         # === FIX END ===
         
         max_rows = len(df)
@@ -82,9 +86,9 @@ class SingleColumnTextAnalysisTool(Tool):
                     df.iat[i, out_info['col_idx']] = result
 
             # === FIX: 使用 path_out 保存 ===
-            data, fname = ExcelProcessor.save_output_file(wb, path_out, origin_name)
+            data, fname = ExcelProcessor.save_output_file(wb, path_out, origin_name, output_file_name)
             mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            yield self.create_blob_message(blob=data, meta={'mime_type': mime_type, 'save_as': fname})
+            yield self.create_blob_message(blob=data, meta={'mime_type': mime_type, 'save_as': fname, 'filename': fname})
         
         finally:
             ExcelProcessor.clean_paths([path_in, path_out])

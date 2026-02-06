@@ -1,5 +1,6 @@
 from collections.abc import Generator
 from typing import Any
+import os
 import re
 
 from dify_plugin import Tool
@@ -13,6 +14,7 @@ class MultiColumnTextAnalysisTool(Tool):
         file_obj = tool_parameters.get('upload_file')
         user_prompt = tool_parameters.get('prompt')
         sheet_number = tool_parameters.get('sheet_number', 1)
+        output_file_name = tool_parameters.get('output_file_name')
 
         input_coords = tool_parameters.get('input_columns') or tool_parameters.get('input_column') or ''
         input_coords = str(input_coords).strip()
@@ -30,6 +32,8 @@ class MultiColumnTextAnalysisTool(Tool):
 
         # === 核心修改：使用副本模式加载 ===
         df, wb, is_xlsx, origin_name, path_in, path_out = ExcelProcessor.load_file_with_copy(file_obj, sheet_number)
+        if not output_file_name or not str(output_file_name).strip():
+            output_file_name = os.path.splitext(origin_name)[0]
         max_rows = len(df)
         
         try:
@@ -97,9 +101,9 @@ class MultiColumnTextAnalysisTool(Tool):
                     df.iat[i, out_info['col_idx']] = result
 
             # 保存
-            data, fname = ExcelProcessor.save_output_file(wb, path_out, origin_name)
+            data, fname = ExcelProcessor.save_output_file(wb, path_out, origin_name, output_file_name)
             mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            yield self.create_blob_message(blob=data, meta={'mime_type': mime_type, 'save_as': fname})
+            yield self.create_blob_message(blob=data, meta={'mime_type': mime_type, 'save_as': fname, 'filename': fname})
 
         finally:
             ExcelProcessor.clean_paths([path_in, path_out])

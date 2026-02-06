@@ -26,6 +26,7 @@ class ChartGeneratorTool(Tool):
         file_obj = tool_parameters.get('upload_file')
         user_prompt = tool_parameters.get('prompt')
         sheet_number = tool_parameters.get('sheet_number', 1)
+        output_file_name = tool_parameters.get('output_file_name')
         
         if not isinstance(llm_model, dict): yield self.create_text_message("Error: model_config invalid."); return
         if not file_obj: yield self.create_text_message("Error: No file uploaded."); return
@@ -33,6 +34,8 @@ class ChartGeneratorTool(Tool):
 
         # 1. 加载文件
         df, wb, is_xlsx, origin_name, path_in, path_out = ExcelProcessor.load_file_with_copy(file_obj, sheet_number)
+        if not output_file_name or not str(output_file_name).strip():
+            output_file_name = os.path.splitext(origin_name)[0]
         
         try:
             # === 数据清理与环境准备 ===
@@ -189,7 +192,8 @@ class ChartGeneratorTool(Tool):
             with open(path_out, 'rb') as f: data = f.read()
 
             yield self.create_text_message(f"**AI Reasoning:** {reasoning}\n\nChart '{title}' created.")
-            yield self.create_blob_message(blob=data, meta={'mime_type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'save_as': origin_name})
+            data, fname = ExcelProcessor.save_output_file(wb, path_out, origin_name, output_file_name)
+            yield self.create_blob_message(blob=data, meta={'mime_type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'save_as': fname, 'filename': fname})
 
         finally:
             ExcelProcessor.clean_paths([path_in, path_out])

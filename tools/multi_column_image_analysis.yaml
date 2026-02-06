@@ -80,6 +80,17 @@ parameters:
       en_US: Instructions for vision model to analyze images.
       zh_Hans: 给视觉大模型的指令用于分析图片。
     llm_description: Instructions for vision model to analyze images.
+  - name: output_file_name
+    type: string
+    required: false
+    label:
+      en_US: Output File Name
+      zh_Hans: 输出文件名
+    form: llm
+    human_description:
+      en_US: The name of the output Excel file (without extension). If not provided, the original file name will be used.
+      zh_Hans: 输出Excel文件的名称（不带扩展名）。如果不提供，将使用原始文件名。
+    llm_description: The name of the output Excel file (without extension). If not provided, the original file name will be used.
 extra:
   python:
     source: tools/multi_column_image_analysis.py

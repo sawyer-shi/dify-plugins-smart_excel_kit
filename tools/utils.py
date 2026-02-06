@@ -23,15 +23,21 @@ class ExcelProcessor:
         content = file_obj.blob
         
         # 1. 解析文件名
-        candidates = set()
+        candidates = []
+        seen = set()
         common_attrs = ['original_filename', 'upload_filename', 'filename', 'name']
         for attr in common_attrs:
             if hasattr(file_obj, attr):
                 val = getattr(file_obj, attr)
-                if isinstance(val, str) and '.' in val: candidates.add(val)
+                if isinstance(val, str) and val not in seen:
+                    candidates.append(val)
+                    seen.add(val)
         try:
             if hasattr(file_obj, '__dict__'):
-                if 'filename' in file_obj.__dict__: candidates.add(file_obj.__dict__['filename'])
+                val = file_obj.__dict__.get('filename')
+                if isinstance(val, str) and val not in seen:
+                    candidates.append(val)
+                    seen.add(val)
         except: pass
 
         uuid_pattern = re.compile(r'^[a-fA-F0-9-]{32,36}\.(xlsx|csv|xls)$')
@@ -219,13 +225,16 @@ class ExcelProcessor:
         return {"mime_type": "image/png", "format": "png"}
 
     @staticmethod
-    def save_output_file(wb: Any, output_path: str, original_filename: str) -> Tuple[bytes, str]:
+    def save_output_file(wb: Any, output_path: str, original_filename: str, custom_file_name: str = None) -> Tuple[bytes, str]:
         base_name, _ = os.path.splitext(original_filename)
-        new_filename = f"smart_{base_name}.xlsx"
+        if custom_file_name and custom_file_name.strip():
+            new_filename = f"{custom_file_name.strip()}.xlsx"
+        else:
+            new_filename = f"smart_{base_name}.xlsx"
 
         if wb:
             try: wb.save(output_path)
-            except: pass # 如果保存失败，尝试直接读取副本
+            except: pass
             
         with open(output_path, 'rb') as f:
             data = f.read()
