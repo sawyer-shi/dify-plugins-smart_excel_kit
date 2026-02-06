@@ -98,6 +98,24 @@ Automatically generate various types of Excel charts based on your data and LLM 
   - Custom chart titles and labels
   - Native Excel chart objects
 
+### Data Manipulation
+
+#### Excel Manipulator (excel_manipulator)
+Use AI to intelligently modify, clean, or calculate Excel data using Python Pandas operations.
+- **Supported Operations**:
+  - Data cleaning and filtering
+  - Row/column manipulation
+  - Calculated columns creation
+  - Data deduplication
+  - Custom data transformations
+- **Features**:
+  - Natural language instructions
+  - AI-generated Python Pandas code
+  - Full Pandas library support
+  - Preserves Excel file structure
+  - Custom output filename support
+  - Safe code execution environment
+
 ## Technical Advantages
 
 - **Local Processing**: All file operations are performed locally, ensuring data privacy
