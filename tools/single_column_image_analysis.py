@@ -34,12 +34,13 @@ class SingleColumnImageAnalysisTool(Tool):
         if not output_file_name or not str(output_file_name).strip():
             output_file_name = os.path.splitext(origin_name)[0]
         max_rows = len(df)
+        preserve_images = ExcelProcessor.has_embedded_images(path_in, sheet_number)
         
         try:
             image_map = {}
             if is_xlsx and path_in:
-                # 从原文件(path_in)提取上浮图片
-                image_map = ExcelProcessor.extract_image_map(path_in)
+                # 从原文件(path_in)提取上浮图片 + 单元格内图片
+                image_map = ExcelProcessor.extract_image_map(path_in, sheet_number)
 
             try:
                 in_info = ExcelProcessor.parse_range(img_col, max_rows)
@@ -55,6 +56,7 @@ class SingleColumnImageAnalysisTool(Tool):
             else:
                 ws = wb.active if (is_xlsx and wb) else None
 
+            updates = []
             for i in target_rows:
                 # 构建消息列表：Prompt + (Images / URL-Images / Text)
                 content_list = [TextPromptMessageContent(type='text', data=user_prompt)]
@@ -131,9 +133,12 @@ class SingleColumnImageAnalysisTool(Tool):
                 else:
                     while out_info['col_idx'] >= len(df.columns): df[len(df.columns)] = ""
                     df.iat[i, out_info['col_idx']] = result
+                updates.append((i, out_info['col_idx'], result))
             
-            # 保存副本
-            data, fname = ExcelProcessor.save_output_file(wb, path_out, origin_name, output_file_name)
+            # 保存副本 (保留单元格内图片)
+            if preserve_images:
+                ExcelProcessor.apply_sheet_updates_preserve_images(path_out, sheet_number, updates)
+            data, fname = ExcelProcessor.save_output_file(None if preserve_images else wb, path_out, origin_name, output_file_name)
             mime_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             yield self.create_blob_message(blob=data, meta={'mime_type': mime_type, 'save_as': fname, 'filename': fname})
 
