@@ -41,6 +41,9 @@ class SingleColumnImageAnalysisTool(Tool):
             if is_xlsx and path_in:
                 # 从原文件(path_in)提取上浮图片 + 单元格内图片
                 image_map = ExcelProcessor.extract_image_map(path_in, sheet_number)
+                if image_map:
+                    max_img_row = max((r for r, _ in image_map.keys()), default=-1)
+                    max_rows = max(max_rows, max_img_row + 1)
 
             try:
                 in_info = ExcelProcessor.parse_range(img_col, max_rows)
@@ -51,6 +54,10 @@ class SingleColumnImageAnalysisTool(Tool):
                 yield self.create_text_message(f"Error: Column '{in_info['col_name']}' exceeds file range."); return
 
             target_rows = range(in_info['start_row'], in_info['end_row'] + 1)
+            if image_map:
+                image_rows = sorted({r for (r, c) in image_map.keys() if c == in_info['col_idx']})
+                if image_rows:
+                    target_rows = sorted(set(target_rows).union(image_rows))
             if wb and sheet_number <= len(wb.worksheets):
                 ws = wb.worksheets[sheet_number - 1]
             else:
