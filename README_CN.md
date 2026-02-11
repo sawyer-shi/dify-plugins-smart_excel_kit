@@ -20,6 +20,7 @@
 4. 立即开始分析您的 Excel/CSV 数据
 
 ## 核心特性
+<img width="380" height="590" alt="CN" src="https://github.com/user-attachments/assets/02c098cd-6242-46db-a8b5-ad4ee195adef" /><img width="369" height="591" alt="EN" src="https://github.com/user-attachments/assets/8332296f-5b4e-4184-929d-24c563b44f2f" />
 
 - **100% 本地处理**: 所有数据处理操作完全在您的本地机器上执行
 - **灵活的大模型集成**: 使用您首选的大模型进行分析和可视化
