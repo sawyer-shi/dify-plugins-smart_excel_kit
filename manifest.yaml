@@ -6,8 +6,8 @@ tags:
 author: sawyer-shi
 name: smart_excel_kit
 label:
-  en_US: smart_excel_kit
-  zh_Hans: 智能多维表
+  en_US: "Smart Excel Kit"
+  zh_Hans: "智能多维表"
 description:
   en_US: "Local Smart Excel Kit: Uses your provided LLM to analyze, summarize, generate charts, manipulate Excel/CSV tables, and outputting the result as an Excel file."
   zh_Hans: "本地智能多维表：通过你提供的大模型对 Excel/CSV 表格进行分析、总结、绘制图表Chart、自由操控表格数据等，并输出 Excel 文件。"
