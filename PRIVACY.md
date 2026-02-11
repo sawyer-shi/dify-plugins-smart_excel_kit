@@ -1,6 +1,6 @@
 # Privacy Policy / 隐私政策
 
-**Effective Date / 生效日期**: January 24, 2026 / 2026年1月24日
+**Effective Date / 生效日期**: February 11, 2026 / 2026年2月11日
 **Version / 版本**: v0.0.1
 **Plugin Name / 插件名称**: Smart Excel Kit / 智能多维表
 **License / 许可证**: Apache License 2.0

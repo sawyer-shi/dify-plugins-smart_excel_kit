@@ -5,12 +5,12 @@ A powerful Dify plugin providing comprehensive **local** Excel/CSV data analysis
 ## Version Information
 
 - **Current Version**: v0.0.1
-- **Release Date**: 2026-01-24
+- **Release Date**: 2026-02-11
 - **Compatibility**: Dify Plugin Framework
 - **Python Version**: 3.12
 
 ### Version History
-- **v0.0.1** (2026-01-24): Initial release with text analysis, image analysis, and chart generation capabilities
+- **v0.0.1** (2026-02-11): Initial release with text analysis, image analysis, and chart generation capabilities
 
 ## Quick Start
 
