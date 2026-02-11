@@ -20,6 +20,9 @@ A powerful Dify plugin providing comprehensive **local** Excel/CSV data analysis
 4. Start analyzing your Excel/CSV data immediately
 
 ## Key Features
+<img width="380" height="590" alt="CN" src="https://github.com/user-attachments/assets/02c098cd-6242-46db-a8b5-ad4ee195adef" /><img width="369" height="591" alt="EN" src="https://github.com/user-attachments/assets/8332296f-5b4e-4184-929d-24c563b44f2f" />
+
+
 
 - **100% Local Processing**: All data processing operations are performed entirely on your local machine
 - **Flexible LLM Integration**: Use your preferred LLM model for analysis and visualization
